@@ -46,22 +46,41 @@ app.layout = html.Div(id='main', children=[
     html.Div(id='graph_container', children=[
         dcc.Graph(id='main_graph', animate=True),
         html.Label(id='option_label', children=['Graph options']),
-        dcc.Checklist(id='graph_options', options=[
-                      'New York districts', 'Public transit', 'Tourist attractions'], value=['New York districts', 'Public transit', 'Tourist attractions'], inline=True, )
+        html.Div(id='graph_options_container', children=[
+            dcc.RangeSlider(id='price_slider', value=[df.price.min(), df.price.max()], min=df.price.min(),
+                            max=df.price.max()),
+            dcc.Checklist(id='graph_options', options=[
+                'New York districts', 'Public transit', 'Tourist attractions'], value=['New York districts', 'Public transit', 'Tourist attractions'], inline=True),
+            dcc.Checklist(id='cancellation', options=df.cancellation_policy.unique(
+            ).tolist(), value=df.cancellation_policy.unique().tolist(), inline=True),
+
+        ]
+        )
+
     ]),
-    html.Div(id='sub_graph_container')
+    html.Div(id='sub_graph_container'),
+    html.Div(id='debug'),
+    html.Div(id='debug2')
 ]
 )
 
 
 @app.callback(
     Output('main_graph', 'figure'),
-    Input('graph_options', 'value')
+    Output('debug', 'children'),
+    Input('graph_options', 'value'),
+    Input('price_slider', 'value'),
+    Input('cancellation', 'value')
 
 )
-def update_graph(graph_options):
+def update_graph(graph_options, price_range, cancellation):
     go_fig = go.Figure()
+    df_appartments_true = df[(df['price'] >= price_range[0]) & (
+        df['price'] <= price_range[1]) & (df['cancellation_policy'].isin(cancellation))]
+
     if 'New York districts' in graph_options:
+        df_plot['appartment_count'] = df_plot['id'].map(
+            dict(df_appartments_true.region.value_counts()))
         second_option = go.Choropleth(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, colorscale="Viridis",
                                       zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=0, hoverinfo='none')
         go_fig.add_trace(second_option)
@@ -87,11 +106,12 @@ def update_graph(graph_options):
 
         go_fig.add_trace(fig_3)
     go_fig.update_layout(transition={'duration': 500})
-    return go_fig
+    return go_fig, f'{cancellation}, {graph_options}, {price_range[0]}, {price_range[1]}'
 
 
 @app.callback(
     Output('sub_graph_container', 'children'),
+    Output('debug2', 'children'),
     Input('main_graph', 'clickData'),
     prevent_initial_call=True
 )
@@ -106,7 +126,7 @@ def on_graph_click(clickdata):
     go_fig.update_layout(mapbox_style="carto-positron")
 
     children = [html.H2(region), dcc.Graph(figure=go_fig)]
-    return children
+    return children, region
 
 
 if __name__ == '__main__':
