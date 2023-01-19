@@ -2,6 +2,7 @@ from ctypes.wintypes import POINT
 from gettext import translation
 import pandas as pd
 from dash import Dash, html, dcc, Input, Output, State
+import dash_daq as daq
 import plotly.express as px
 import plotly.graph_objects as go
 import json
@@ -48,11 +49,42 @@ app.layout = html.Div(id='main', children=[
         html.Label(id='option_label', children=['Graph options']),
         html.Div(id='graph_options_container', children=[
             dcc.RangeSlider(id='price_slider', value=[df.price.min(), df.price.max()], min=df.price.min(),
-                            max=df.price.max()),
+                            max=df.price.max(), tooltip={"placement": "bottom", "always_visible": True}),
             dcc.Checklist(id='graph_options', options=[
-                'New York districts', 'Public transit', 'Tourist attractions'], value=['New York districts', 'Public transit', 'Tourist attractions'], inline=True),
-            dcc.Checklist(id='cancellation', options=df.cancellation_policy.unique(
-            ).tolist(), value=df.cancellation_policy.unique().tolist(), inline=True),
+                'New York districts', 'Public transit', 'Tourist attractions'],labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions']),
+            
+            html.Details(id='cancellation_summary', children=[
+                html.Summary('Cancellation policy'),
+                dcc.Checklist(style={'margin-left' : '15px'},id='cancellation',labelStyle={'display': 'block'}, options=df.cancellation_policy.unique(
+            ).tolist(), value=df.cancellation_policy.unique().tolist())
+            ])
+            ,
+            html.Details(
+                id='room_type_details', children=[
+                    html.Summary('Room type'),
+                    dcc.Checklist(style={'margin-left' : '15px'},id='room_type_checklist',labelStyle={'display': 'block'}, options=df['room type'].unique().tolist(), value=df['room type'].unique().tolist())
+                ]
+            ),
+            html.Details(id='num_days_to_book', children=[
+                html.Summary('Number of nights you want to book'),
+                daq.NumericInput(value=1, id='number_of_days_input', max=1000)
+            ]),
+            html.Details(id='average_review_details', children=[
+                html.Summary('Average review'),
+                dcc.Slider(id='review_slider', min=0, max=5, value=0,tooltip={"placement": "bottom", "always_visible": True})
+            ]),
+            html.Details(id='instant_bookable_details', children=[
+                html.Summary('Immediately available'),
+                dcc.Checklist(style={'margin-left' : '15px'},id='available_check', labelStyle={'display': 'block'}, options=['Instantly avaible'], value=[])
+            ]),
+            html.Details(id='service_fee_details', children=[
+                html.Summary('Maximum service fee'),
+                dcc.Slider(id='service_fee_slider', min=df['service fee'].min(), max=df['service fee'].max(), value=df['service fee'].max(),tooltip={"placement": "bottom", "always_visible": True} )
+            ])
+            
+            
+
+
 
         ]
         )
