@@ -100,15 +100,19 @@ app.layout = html.Div(id='main', children=[
 @app.callback(
     Output('main_graph', 'figure'),
     Output('debug', 'children'),
+    Input('room_type_checklist', 'value'),
+    Input('service_fee_slider','value'),
+    Input('number_of_days_input', 'value'),
     Input('graph_options', 'value'),
     Input('price_slider', 'value'),
     Input('cancellation', 'value')
 
 )
-def update_graph(graph_options, price_range, cancellation):
+def update_graph(room_type, service_fee, number_of_days,,graph_options, price_range, cancellation):
     go_fig = go.Figure()
     df_appartments_true = df[(df['price'] >= price_range[0]) & (
-        df['price'] <= price_range[1]) & (df['cancellation_policy'].isin(cancellation))]
+        df['price'] <= price_range[1]) & (df['cancellation_policy'].isin(cancellation)) & (df['minimum nights'] <= number_of_days)
+        & (df['service fee'] <= service_fee) & (df['room type'].isin(room_type))]
 
     if 'New York districts' in graph_options:
         df_plot['appartment_count'] = df_plot['id'].map(
