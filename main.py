@@ -45,24 +45,24 @@ for feature, name in zip(df_sub.geometry, df_sub.name):
 app.layout = html.Div(id='main', children=[
     html.H1(id='title', children='Air BnB'),
     html.Div(id='graph_container', children=[
-        dcc.Graph(id='main_graph', animate=True),
+        dcc.Graph(id='main_graph', animate=False),
         html.Label(id='option_label', children=['Graph options']),
         html.Div(id='graph_options_container', children=[
             dcc.RangeSlider(id='price_slider', value=[df.price.min(), df.price.max()], min=df.price.min(),
                             max=df.price.max(), tooltip={"placement": "bottom", "always_visible": True}),
             dcc.Checklist(id='graph_options', options=[
-                'New York districts', 'Public transit', 'Tourist attractions'],labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions']),
-            
+                'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions']),
+
             html.Details(id='cancellation_summary', children=[
                 html.Summary('Cancellation policy'),
-                dcc.Checklist(style={'margin-left' : '15px'},id='cancellation',labelStyle={'display': 'block'}, options=df.cancellation_policy.unique(
-            ).tolist(), value=df.cancellation_policy.unique().tolist())
-            ])
-            ,
+                dcc.Checklist(style={'margin-left': '15px'}, id='cancellation', labelStyle={'display': 'block'}, options=df.cancellation_policy.unique(
+                ).tolist(), value=df.cancellation_policy.unique().tolist())
+            ]),
             html.Details(
                 id='room_type_details', children=[
                     html.Summary('Room type'),
-                    dcc.Checklist(style={'margin-left' : '15px'},id='room_type_checklist',labelStyle={'display': 'block'}, options=df['room type'].unique().tolist(), value=df['room type'].unique().tolist())
+                    dcc.Checklist(style={'margin-left': '15px'}, id='room_type_checklist', labelStyle={
+                                  'display': 'block'}, options=df['room type'].unique().tolist(), value=df['room type'].unique().tolist())
                 ]
             ),
             html.Details(id='num_days_to_book', children=[
@@ -71,18 +71,22 @@ app.layout = html.Div(id='main', children=[
             ]),
             html.Details(id='average_review_details', children=[
                 html.Summary('Average review'),
-                dcc.Slider(id='review_slider', min=0, max=5, value=0,tooltip={"placement": "bottom", "always_visible": True})
+                dcc.Slider(id='review_slider', min=0, max=5, value=0, tooltip={
+                           "placement": "bottom", "always_visible": True})
             ]),
             html.Details(id='instant_bookable_details', children=[
                 html.Summary('Immediately available'),
-                dcc.Checklist(style={'margin-left' : '15px'},id='available_check', labelStyle={'display': 'block'}, options=['Instantly avaible'], value=[])
+                dcc.Checklist(style={'margin-left': '15px'}, id='available_check', labelStyle={
+                              'display': 'block'}, options=['Instantly avaible'], value=[])
             ]),
             html.Details(id='service_fee_details', children=[
                 html.Summary('Maximum service fee'),
-                dcc.Slider(id='service_fee_slider', min=df['service fee'].min(), max=df['service fee'].max(), value=df['service fee'].max(),tooltip={"placement": "bottom", "always_visible": True} )
-            ])
-            
-            
+                dcc.Slider(id='service_fee_slider', min=df['service fee'].min(), max=df['service fee'].max(
+                ), value=df['service fee'].max(), tooltip={"placement": "bottom", "always_visible": True})
+            ]),
+            html.Button('Apply', id='apply_button')
+
+
 
 
 
@@ -90,9 +94,14 @@ app.layout = html.Div(id='main', children=[
         )
 
     ]),
-    html.Div(id='sub_graph_container'),
+    html.Div(id='sub_graph_container', children=[
+        html.H2(id='sub_graph_header'),
+        dcc.Graph(id='sub_graph_figure', animate=False)
+    ]),
+    html.Div(id='comparison_container'),
     html.Div(id='debug'),
-    html.Div(id='debug2')
+    html.Div(id='debug2'),
+    html.Div(id='debug_clickdata')
 ]
 )
 
@@ -100,20 +109,25 @@ app.layout = html.Div(id='main', children=[
 @app.callback(
     Output('main_graph', 'figure'),
     Output('debug', 'children'),
-    Input('room_type_checklist', 'value'),
-    Input('service_fee_slider','value'),
-    Input('number_of_days_input', 'value'),
-    Input('graph_options', 'value'),
-    Input('price_slider', 'value'),
-    Input('cancellation', 'value')
+    Input('apply_button', 'n_clicks'),
+    State('main_graph', 'figure'),
+    State('room_type_checklist', 'value'),
+    State('service_fee_slider', 'value'),
+    State('number_of_days_input', 'value'),
+    State('graph_options', 'value'),
+    State('price_slider', 'value'),
+    State('cancellation', 'value'),
+    State('review_slider', 'value')
 
 )
-def update_graph(room_type, service_fee, number_of_days,,graph_options, price_range, cancellation):
+def update_graph(apply_button, figure, room_type, service_fee, number_of_days, graph_options, price_range, cancellation, min_review):
+    mask1 = (df['price'] >= price_range[0]) & (df['price'] <= price_range[1]) & (
+        df['cancellation_policy'].isin(cancellation)) & (df['minimum nights'] <= number_of_days)
+    mask2 = mask1 & (df['service fee'] <= service_fee) & (
+        df['room type'].isin(room_type)) & (df['review rate number'] >= min_review)
+    df_appartments_true = df[mask2]
     go_fig = go.Figure()
-    df_appartments_true = df[(df['price'] >= price_range[0]) & (
-        df['price'] <= price_range[1]) & (df['cancellation_policy'].isin(cancellation)) & (df['minimum nights'] <= number_of_days)
-        & (df['service fee'] <= service_fee) & (df['room type'].isin(room_type))]
-
+    go_fig.update_layout()
     if 'New York districts' in graph_options:
         df_plot['appartment_count'] = df_plot['id'].map(
             dict(df_appartments_true.region.value_counts()))
@@ -141,12 +155,16 @@ def update_graph(room_type, service_fee, number_of_days,,graph_options, price_ra
             marker=dict(color='black'))
 
         go_fig.add_trace(fig_3)
-    go_fig.update_layout(transition={'duration': 500})
-    return go_fig, f'{cancellation}, {graph_options}, {price_range[0]}, {price_range[1]}'
+    go_fig.update_layout()
+    if not figure:
+        return go_fig, f'{figure}'
+    return go_fig, f'{figure.keys()}'
 
 
 @app.callback(
-    Output('sub_graph_container', 'children'),
+    Output('sub_graph_figure', 'figure'),
+    Output("sub_graph_header", 'children'),
+    Output('sub_graph_figure', 'style'),
     Output('debug2', 'children'),
     Input('main_graph', 'clickData'),
     prevent_initial_call=True
@@ -161,8 +179,16 @@ def on_graph_click(clickdata):
     go_fig.update_geos(fitbounds="locations")
     go_fig.update_layout(mapbox_style="carto-positron")
 
-    children = [html.H2(region), dcc.Graph(figure=go_fig)]
-    return children, region
+    return go_fig, region, {"display": "block"}, "skurt"
+
+
+@app.callback(
+    Output('comparison_container', 'children'),
+    Input('sub_graph_figure', 'clickData'),
+    prevent_initial_call=True
+)
+def on_sub_graph_click(clickdata):
+    return f'{clickdata}'
 
 
 if __name__ == '__main__':
