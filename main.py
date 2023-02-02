@@ -211,9 +211,22 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     df_appartments_true = df[mask2]
     go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
     df_subregion = df_appartments_true[df_appartments_true['region'] == region]
-    fig_3 = go.Scattergeo(lon=df_subregion['long'], lat=df_subregion['lat'], text=df_subregion['NAME'],
-                          marker=dict(color='black'), marker_color=df_subregion['app_type_color'], hovertemplate="%{text}")
-    go_fig.add_trace(fig_3)
+    
+    # Get unique app_types and create a trace for each app_type
+    app_types = df_subregion['room type'].unique()
+    traces = []
+    for app_type in app_types:
+        df_app_type = df_subregion[df_subregion['room type'] == app_type]
+        trace = go.Scattergeo(lon=df_app_type['long'], lat=df_app_type['lat'], text=df_app_type['NAME'],
+                              marker=dict(color='black'), marker_color=df_app_type['app_type_color'], hovertemplate="%{text}",
+                              name=app_type)
+        traces.append(trace)
+    
+    # Add all traces to the figure and set the showlegend attribute to True
+    for trace in traces:
+        go_fig.add_trace(trace)
+    go_fig.update_layout(showlegend=True)
+    
     go_fig.update_geos(fitbounds="locations")
     go_fig.update_layout(mapbox_style="carto-positron")
 
