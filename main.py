@@ -1,6 +1,7 @@
 from cgitb import text
 from ctypes.wintypes import POINT
 from gettext import translation
+from turtle import color
 import pandas as pd
 from dash import Dash, html, dcc, Input, Output, State, dash_table
 import dash_daq as daq
@@ -22,6 +23,7 @@ df['app_type_color'] = df['room type'].map(mapping_collors)
 df_plot = pd.read_csv('data/apparments_per_region.csv',
                       low_memory=False, index_col=0)
 df_plot['geometry'] = df_plot['geometry'].apply(lambda x: shapely.wkt.loads(x))
+
 df_sub = gpd.read_file('data/Subway Lines.geojson')
 df_attraction = gpd.read_file('data/attraction_point.geojson')
 table_columns = ['NAME', 'room type', 'price', 'service fee',
@@ -133,7 +135,6 @@ app.layout = html.Div(id='main', children=[
 
 @app.callback(
     Output('main_graph', 'figure'),
-    Output('debug', 'children'),
     Input('apply_button', 'n_clicks'),
     State('main_graph', 'figure'),
     State('room_type_checklist', 'value'),
@@ -156,8 +157,8 @@ def update_graph(apply_button, figure, room_type, service_fee, number_of_days, g
     if 'New York districts' in graph_options:
         df_plot['appartment_count'] = df_plot['id'].map(
             dict(df_appartments_true.region.value_counts()))
-        second_option = go.Choropleth(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, colorscale="Viridis",
-                                      zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=0, hoverinfo='none')
+        second_option = go.Choropleth(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, colorscale=[[0, 'rgb(0,0,255)'], [1, 'rgb(0,0,255)']],
+                                      zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=2, hoverinfo='none', showlegend=False, showscale=False)
         go_fig.add_trace(second_option)
         go_fig.update_geos(fitbounds="locations")
         go_fig.update_layout(mapbox_style="carto-positron",
@@ -167,7 +168,7 @@ def update_graph(apply_button, figure, room_type, service_fee, number_of_days, g
         go_fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 
         fig_2 = go.Scattergeo(lat=lats, lon=lons,
-                              mode='lines', hoverinfo='skip')
+                              mode='lines', hoverinfo='skip', showlegend=False)
         go_fig.add_trace(fig_2)
         go_fig.update_geos(fitbounds="locations")
         go_fig.update_layout(mapbox_style="carto-positron",
@@ -177,13 +178,13 @@ def update_graph(apply_button, figure, room_type, service_fee, number_of_days, g
 
         fig_3 = go.Scattergeo(lon=df_attraction['geometry'].map(attrgetter(
             'x')), lat=df_attraction['geometry'].map(attrgetter('y')), text=df_attraction['name'],
-            marker=dict(color='black'))
+            marker=dict(color='black'), showlegend=False)
 
         go_fig.add_trace(fig_3)
     go_fig.update_layout()
     if not figure:
-        return go_fig, f'{figure}'
-    return go_fig, f'{figure.keys()}'
+        return go_fig
+    return go_fig
 
 
 @app.callback(
@@ -191,13 +192,25 @@ def update_graph(apply_button, figure, room_type, service_fee, number_of_days, g
     Output("sub_graph_header", 'children'),
     Output('sub_graph_figure', 'style'),
     Output('debug2', 'children'),
+    Input('apply_button', 'n_clicks'),
     Input('main_graph', 'clickData'),
+    State('room_type_checklist', 'value'),
+    State('service_fee_slider', 'value'),
+    State('number_of_days_input', 'value'),
+    State('price_slider', 'value'),
+    State('cancellation', 'value'),
+    State('review_slider', 'value'),
     prevent_initial_call=True
 )
-def on_graph_click(clickdata):
+def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_days, price_range, cancellation, min_review):
     region = clickdata['points'][0]['location']
+    mask1 = (df['price'] >= price_range[0]) & (df['price'] <= price_range[1]) & (
+        df['cancellation_policy'].isin(cancellation)) & (df['minimum nights'] <= number_of_days)
+    mask2 = mask1 & (df['service fee'] <= service_fee) & (
+        df['room type'].isin(room_type)) & (df['review rate number'] >= min_review)
+    df_appartments_true = df[mask2]
     go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
-    df_subregion = df[df['region'] == region]
+    df_subregion = df_appartments_true[df_appartments_true['region'] == region]
     fig_3 = go.Scattergeo(lon=df_subregion['long'], lat=df_subregion['lat'], text=df_subregion['NAME'],
                           marker=dict(color='black'), marker_color=df_subregion['app_type_color'], hovertemplate="%{text}")
     go_fig.add_trace(fig_3)
