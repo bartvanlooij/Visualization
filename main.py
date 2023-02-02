@@ -1,7 +1,7 @@
 from cgitb import text
 from ctypes.wintypes import POINT
 from gettext import translation
-from turtle import color
+from turtle import color, heading
 import pandas as pd
 from dash import Dash, html, dcc, Input, Output, State, dash_table
 import dash_daq as daq
@@ -125,7 +125,9 @@ app.layout = html.Div(id='main', children=[
         ]),
         html.Div(id='comparison_container', children=[
             dash_table.DataTable(id='comparison_table', columns=[
-                                 {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True)
+                                 {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True),
+            html.Button('Add appartments to New York map',
+                        id='add_points_button')
         ], style={'display': 'none'})
     ], style={'display': 'flex', 'flex-direction': 'row'}),
     html.Div(id='debug'),
@@ -138,11 +140,12 @@ app.layout = html.Div(id='main', children=[
 @app.callback(
     Output('main_graph', 'figure'),
     Input('apply_button', 'n_clicks'),
+    Input('add_points_button', 'n_clicks'),
     State('main_graph', 'figure'),
     State('graph_options', 'value')
 
 )
-def update_graph(apply_button, figure, graph_options):
+def update_graph(apply_button, add_points, figure, graph_options):
     go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
     go_fig.update_layout()
     if 'New York districts' in graph_options:
@@ -171,8 +174,8 @@ def update_graph(apply_button, figure, graph_options):
         go_fig.add_trace(fig_3)
 
     df_table = df[df['size'] == hightlight_size]
-    fig_table = go.Scattergeo(lon=df_table['long'], lat=df_table['lat'], text=df.NAME, marker=dict(
-        color='red'), showlegend=False, hovertemplate="%{text}")
+    fig_table = go.Scattergeo(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME, marker=dict(
+        color='red', size=hightlight_size), showlegend=False, hovertemplate="%{text}")
     go_fig.add_trace(fig_table)
     go_fig.update_layout()
     if not figure:
@@ -203,7 +206,7 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     df_appartments_true = df[mask2]
     go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
     df_subregion = df_appartments_true[df_appartments_true['region'] == region]
-    
+
     # Get unique app_types and create a trace for each app_type
     app_types = df_subregion['room type'].unique()
     traces = []
@@ -213,12 +216,12 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
                               marker=dict(color='black'), marker_color=df_app_type['app_type_color'], hovertemplate="%{text}",
                               name=app_type)
         traces.append(trace)
-    
+
     # Add all traces to the figure and set the showlegend attribute to True
     for trace in traces:
         go_fig.add_trace(trace)
     go_fig.update_layout(showlegend=True)
-    
+
     go_fig.update_geos(fitbounds="locations")
     go_fig.update_layout(mapbox_style="carto-positron")
 
