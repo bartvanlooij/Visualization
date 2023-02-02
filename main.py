@@ -1,7 +1,7 @@
 from ctypes.wintypes import POINT
 from gettext import translation
 import pandas as pd
-from dash import Dash, html, dcc, Input, Output, State
+from dash import Dash, html, dcc, Input, Output, State, dash_table
 import dash_daq as daq
 import plotly.express as px
 import plotly.graph_objects as go
@@ -95,10 +95,16 @@ app.layout = html.Div(id='main', children=[
 
     ]),
     html.Div(id='sub_graph_container', children=[
-        html.H2(id='sub_graph_header'),
-        dcc.Graph(id='sub_graph_figure', animate=False)
-    ]),
-    html.Div(id='comparison_container'),
+        html.Div(children=[
+            html.H2(id='sub_graph_header'),
+            dcc.Graph(id='sub_graph_figure', animate=False,
+                      style={'display': 'none'})
+        ]),
+        html.Div(id='comparison_container', children=[
+            dash_table.DataTable(id='comparison_table', columns=[
+                                 {'name': f'{x}', 'id': f'{x}', 'deletable': True} for x in df.columns.tolist()], editable=True)
+        ])
+    ], style={'display': 'flex', 'flex-direction': 'row'}),
     html.Div(id='debug'),
     html.Div(id='debug2'),
     html.Div(id='debug_clickdata')
@@ -183,12 +189,22 @@ def on_graph_click(clickdata):
 
 
 @app.callback(
-    Output('comparison_container', 'children'),
+    Output('comparison_table', 'data'),
+    Output('debug_clickdata', 'children'),
     Input('sub_graph_figure', 'clickData'),
+    State('comparison_table', 'columns'),
+    State('comparison_table', 'data'),
     prevent_initial_call=True
 )
-def on_sub_graph_click(clickdata):
-    return f'{clickdata}'
+def on_sub_graph_click(clickdata, columns, rows):
+    long = float(clickdata['points'][0]['lon'])
+    lat = float(clickdata['points'][0]['lat'])
+    row = df[(df['long'] == long) & (df['lat'] == lat)
+             ].values.flatten().tolist()
+    if not rows:
+        rows = []
+    rows.append({c['id']: row[index] for index, c in enumerate(columns)})
+    return rows, f'{rows}'
 
 
 if __name__ == '__main__':
