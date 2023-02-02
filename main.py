@@ -16,6 +16,7 @@ from operator import attrgetter
 with open('data/nyc.geojson') as f:
     geo_json = json.load(f)
 df = pd.read_csv('data/airbnb_open_data.csv', low_memory=False, index_col=0)
+df['size'] = 1
 list_colors = ['blue', 'red', 'green', 'purple']
 mapping_collors = {x: list_colors[index] for index,
                    x in enumerate(df['room type'].unique().tolist())}
@@ -25,7 +26,7 @@ df_plot = pd.read_csv('data/apparments_per_region.csv',
 df_plot['geometry'] = df_plot['geometry'].apply(lambda x: shapely.wkt.loads(x))
 
 df_sub = gpd.read_file('data/Subway Lines.geojson')
-df_attraction = gpd.read_file('data/attraction_point.geojson')
+df_attraction = pd.read_csv('data/number_of_vistors.csv', index_col=0)
 table_columns = ['NAME', 'room type', 'price', 'service fee',
                  'minimum nights', 'number of reviews', 'review rate number', 'region']
 prices = ['price', 'service fee']
@@ -34,6 +35,7 @@ max_columns = ['price', 'service fee',
 
 graph_width = 100
 graph_height = 100
+hightlight_size = 3
 app = Dash(__name__)
 
 lats = []
@@ -124,7 +126,7 @@ app.layout = html.Div(id='main', children=[
         html.Div(id='comparison_container', children=[
             dash_table.DataTable(id='comparison_table', columns=[
                                  {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True)
-        ])
+        ], style={'display': 'none'})
     ], style={'display': 'flex', 'flex-direction': 'row'}),
     html.Div(id='debug'),
     html.Div(id='debug2'),
@@ -137,26 +139,13 @@ app.layout = html.Div(id='main', children=[
     Output('main_graph', 'figure'),
     Input('apply_button', 'n_clicks'),
     State('main_graph', 'figure'),
-    State('room_type_checklist', 'value'),
-    State('service_fee_slider', 'value'),
-    State('number_of_days_input', 'value'),
-    State('graph_options', 'value'),
-    State('price_slider', 'value'),
-    State('cancellation', 'value'),
-    State('review_slider', 'value')
+    State('graph_options', 'value')
 
 )
-def update_graph(apply_button, figure, room_type, service_fee, number_of_days, graph_options, price_range, cancellation, min_review):
-    mask1 = (df['price'] >= price_range[0]) & (df['price'] <= price_range[1]) & (
-        df['cancellation_policy'].isin(cancellation)) & (df['minimum nights'] <= number_of_days)
-    mask2 = mask1 & (df['service fee'] <= service_fee) & (
-        df['room type'].isin(room_type)) & (df['review rate number'] >= min_review)
-    df_appartments_true = df[mask2]
+def update_graph(apply_button, figure, graph_options):
     go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
     go_fig.update_layout()
     if 'New York districts' in graph_options:
-        df_plot['appartment_count'] = df_plot['id'].map(
-            dict(df_appartments_true.region.value_counts()))
         second_option = go.Choropleth(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, colorscale=[[0, 'rgb(0,0,255)'], [1, 'rgb(0,0,255)']],
                                       zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=2, hoverinfo='none', showlegend=False, showscale=False)
         go_fig.add_trace(second_option)
@@ -176,11 +165,15 @@ def update_graph(apply_button, figure, room_type, service_fee, number_of_days, g
 
     if 'Tourist attractions' in graph_options:
 
-        fig_3 = go.Scattergeo(lon=df_attraction['geometry'].map(attrgetter(
-            'x')), lat=df_attraction['geometry'].map(attrgetter('y')), text=df_attraction['name'],
-            marker=dict(color='black'), showlegend=False)
+        fig_3 = go.Scattergeo(lon=df_attraction['long'], lat=df_attraction['lat'], text=df_attraction['Name'], customdata=df_attraction['Estimated number of visitors (millions)'],
+                              marker=dict(color='black'), showlegend=False, hovertemplate="%{text}<br>Number of visitors per year: %{customdata} million")
 
         go_fig.add_trace(fig_3)
+
+    df_table = df[df['size'] == hightlight_size]
+    fig_table = go.Scattergeo(lon=df_table['long'], lat=df_table['lat'], text=df.NAME, marker=dict(
+        color='red'), showlegend=False, hovertemplate="%{text}")
+    go_fig.add_trace(fig_table)
     go_fig.update_layout()
     if not figure:
         return go_fig
@@ -191,7 +184,6 @@ def update_graph(apply_button, figure, room_type, service_fee, number_of_days, g
     Output('sub_graph_figure', 'figure'),
     Output("sub_graph_header", 'children'),
     Output('sub_graph_figure', 'style'),
-    Output('debug2', 'children'),
     Input('apply_button', 'n_clicks'),
     Input('main_graph', 'clickData'),
     State('room_type_checklist', 'value'),
@@ -217,11 +209,12 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     go_fig.update_geos(fitbounds="locations")
     go_fig.update_layout(mapbox_style="carto-positron")
 
-    return go_fig, region, {"display": "block"}, "skurt"
+    return go_fig, region.replace("_", " "), {"display": "block"}
 
 
 @app.callback(
     Output('comparison_table', 'data'),
+    Output('comparison_container', 'style'),
     Input('sub_graph_figure', 'clickData'),
     State('comparison_table', 'columns'),
     State('comparison_table', 'data'),
@@ -231,17 +224,19 @@ def on_sub_graph_click(clickdata, columns, rows):
     long = float(clickdata['points'][0]['lon'])
     lat = float(clickdata['points'][0]['lat'])
     row = df[(df['long'] == long) & (df['lat'] == lat)
-             ][table_columns].values.flatten().tolist()
+             ][table_columns]
+    index = row.index[0]
+    df.loc[index, 'size'] = hightlight_size
+    row = row.values.flatten().tolist()
     max_values = []
-
     if not rows:
         rows = []
-    new_row = {c['id']: (f'${int(row[index])}' if c['id'] in prices else row[index])
+    new_row = {c['id']: (f'${int(row[index])}' if c['id'] in prices else str(row[index]).replace("_", ' '))
                for index, c in enumerate(columns)}
     if not (new_row in rows):
         rows.append(new_row)
 
-    return rows
+    return rows, {"display": "block"}
 
 
 @app.callback(
