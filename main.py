@@ -83,6 +83,7 @@ app.layout = html.Div(id='main', children=[
         html.Div(id='comparison_container', children=[
             html.Div(children=[
                 html.Div(id='graph_options_container', children=[
+                    html.H2("Filter options"),
                     dcc.Checklist(id='graph_options', options=[
                         'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions']),
                     html.Details(id='price_range_details', children=[
@@ -129,7 +130,7 @@ app.layout = html.Div(id='main', children=[
 
 
 
-                ], style={'width': '500px'}
+                ], style={'width': '500px', 'display': 'none'}
                 )
             ])
         ])
@@ -170,7 +171,7 @@ def update_graph(apply_button, add_points, figure, graph_options):
     if 'Tourist attractions' in graph_options:
 
         fig_3 = go.Scattermapbox(lon=df_attraction['long'], lat=df_attraction['lat'], text=df_attraction['Name'], customdata=df_attraction['Estimated number of visitors (millions)'],
-                                 marker=dict(color='black'), showlegend=False, hovertemplate="%{text}<br>Number of visitors per year: %{customdata} million")
+                                 marker=dict(color='black'), showlegend=False, hovertemplate="%{text}<br>Average yearly visitors: %{customdata} million")
 
         go_fig.add_trace(fig_3)
 
@@ -189,6 +190,7 @@ def update_graph(apply_button, add_points, figure, graph_options):
     Output('sub_graph_figure', 'figure'),
     Output("sub_graph_header", 'children'),
     Output('sub_graph_figure', 'style'),
+    Output('graph_options_container', 'style'),
     Input('apply_button', 'n_clicks'),
     Input('main_graph', 'clickData'),
     State('room_type_checklist', 'value'),
@@ -229,7 +231,7 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     go_fig.update_geos(fitbounds="locations")
     go_fig.update_layout(mapbox_style="open-street-map")
 
-    return go_fig, region.replace("_", " "), {"display": "block"}
+    return go_fig, region.replace("_", " "), {"display": "block"}, {'width': '500px', 'display': 'block'}
 
 
 @app.callback(
