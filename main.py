@@ -64,7 +64,9 @@ app.layout = html.Div(id='main', children=[
     html.H1(id='title', children='Air BnB appartments in New York'),
     html.Div(id='main_graph_options_container', children=[
         html.Div(id='graph_container', children=[
-            dcc.Graph(id='main_graph', animate=False)
+            dcc.Graph(id='main_graph', animate=False),
+            dcc.Checklist(id='graph_options', options=[
+                        'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions'])
         ]),
         html.Div(id='table_container', children=[
             html.H2("Apparment comparrison"),
@@ -86,8 +88,6 @@ app.layout = html.Div(id='main', children=[
                 html.Br(),
                 html.Div(id='graph_options_container', children=[
                     html.H2("Filter options"),
-                    dcc.Checklist(id='graph_options', options=[
-                        'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions']),
                     html.Details(id='price_range_details', children=[
                         html.Summary('Price range'),
                         dcc.RangeSlider(id='price_slider', value=[df.price.min(), df.price.max()], min=df.price.min(),
@@ -145,11 +145,11 @@ app.layout = html.Div(id='main', children=[
     Output('main_graph', 'figure'),
     Input('apply_button', 'n_clicks'),
     Input('add_points_button', 'n_clicks'),
-    State('main_graph', 'figure'),
-    State('graph_options', 'value')
+    Input('graph_options', 'value'),
+    State('main_graph', 'figure')
 
 )
-def update_graph(apply_button, add_points, figure, graph_options):
+def update_graph(apply_button, add_points, graph_options, figure):
     go_fig = go.Figure(layout=go.Layout(height=graph_height, width=graph_width))
     go_fig.update_layout()
     if 'New York districts' in graph_options:
@@ -178,8 +178,7 @@ def update_graph(apply_button, add_points, figure, graph_options):
         go_fig.add_trace(fig_3)
 
     df_table = df[df['size'] == hightlight_size]
-    fig_table = go.Scattermapbox(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME, mode='markers', marker=dict(color='yellow',
-                                                                                                                            size=hightlight_size), showlegend=True, hovertemplate="%{text}", name='Selected apparments')
+    fig_table = go.Scattermapbox(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME,marker=dict(color='yellow'), showlegend=True, hovertemplate="%{text}", name='Selected apparments')
     go_fig.add_trace(fig_table)
     go_fig.update_layout(showlegend=True, mapbox=dict(accesstoken=token))
     go_fig.update_layout(mapbox_style="open-street-map")
@@ -218,8 +217,7 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     traces = []
     for app_type in app_types:
         df_app_type = df_subregion[df_subregion['room type'] == app_type]
-        trace = go.Scattermapbox(lon=df_app_type['long'], lat=df_app_type['lat'], text=df_app_type['NAME'],
-                                 marker=dict(color='black'), marker_color=df_app_type['app_type_color'], hovertemplate="%{text}",
+        trace = go.Scattermapbox(lon=df_app_type['long'], lat=df_app_type['lat'], text=df_app_type['NAME'], marker_color=df_app_type['app_type_color'], hovertemplate="%{text}",
                                  name=app_type)
         traces.append(trace)
 
