@@ -164,7 +164,7 @@ def update_graph(apply_button, add_points, figure, graph_options):
         go_fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 
         fig_2 = go.Scattermapbox(lat=lats, lon=lons,
-                                 mode='lines', hoverinfo='skip', showlegend=False)
+                                 mode='lines', hoverinfo='skip', name='Metro lines', showlegend=True)
         go_fig.add_trace(fig_2)
         go_fig.update_geos(fitbounds="locations")
         go_fig.update_layout(mapbox_style="carto-positron",
