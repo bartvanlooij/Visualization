@@ -10,9 +10,7 @@ import plotly.graph_objects as go
 import json
 import geopandas as gpd
 import shapely
-from shapely.geometry import Point
 import numpy as np
-from operator import attrgetter
 with open('data/nyc.geojson') as f:
     geo_json = json.load(f)
 df = pd.read_csv('data/airbnb_open_data.csv', low_memory=False, index_col=0)
@@ -36,8 +34,8 @@ prices = ['price', 'service fee']
 max_columns = ['price', 'service fee',
                'number of reviews', 'review rate number']
 
-graph_width = 100
-graph_height = 100
+graph_width = 1000
+graph_height = 500
 hightlight_size = 12
 app = Dash(__name__)
 token = open("token").read()
@@ -68,7 +66,9 @@ app.layout = html.Div(id='main', children=[
         html.Div(id='graph_container', children=[
             dcc.Graph(id='main_graph', animate=False)
         ]),
-        html.Div(id='table_container', children=[dash_table.DataTable(id='comparison_table', columns=[
+        html.Div(id='table_container', children=[
+            html.H2("Apparment comparrison"),
+            dash_table.DataTable(id='comparison_table', columns=[
             {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True),
             html.Button('Add appartments to New York map',
                         id='add_points_button')], style={'display': 'none'})
@@ -82,6 +82,8 @@ app.layout = html.Div(id='main', children=[
         ]),
         html.Div(id='comparison_container', children=[
             html.Div(children=[
+                html.Br(),
+                html.Br(),
                 html.Div(id='graph_options_container', children=[
                     html.H2("Filter options"),
                     dcc.Checklist(id='graph_options', options=[
@@ -148,7 +150,7 @@ app.layout = html.Div(id='main', children=[
 
 )
 def update_graph(apply_button, add_points, figure, graph_options):
-    go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
+    go_fig = go.Figure(layout=go.Layout(height=graph_height, width=graph_width))
     go_fig.update_layout()
     if 'New York districts' in graph_options:
         second_option = go.Choroplethmapbox(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, customdata=df_plot['name'], colorscale=[[0, 'rgb(0,0,255)'], [1, 'rgb(0,0,255)']],
@@ -208,7 +210,7 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     mask2 = mask1 & (df['service fee'] <= service_fee) & (
         df['room type'].isin(room_type)) & (df['review rate number'] >= min_review)
     df_appartments_true = df[mask2]
-    go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
+    go_fig = go.Figure(layout=go.Layout(height=graph_height, width=graph_width+100))
     df_subregion = df_appartments_true[df_appartments_true['region'] == region]
 
     # Get unique app_types and create a trace for each app_type
