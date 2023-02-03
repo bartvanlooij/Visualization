@@ -151,7 +151,7 @@ def update_graph(apply_button, add_points, figure, graph_options):
     go_fig.update_layout()
     if 'New York districts' in graph_options:
         second_option = go.Choroplethmapbox(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, customdata=df_plot['name'], colorscale=[[0, 'rgb(0,0,255)'], [1, 'rgb(0,0,255)']],
-                                            zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=2, hoverinfo='none', marker=dict(opacity=0.5), showlegend=False, showscale=False, hovertemplate="%{customdata}")
+                                            zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=2, hoverinfo='none', marker=dict(opacity=0.2), showlegend=False, showscale=False, hovertemplate="%{customdata}")
         go_fig.add_trace(second_option)
         go_fig.update_geos(fitbounds="locations")
         go_fig.update_layout(mapbox_style="carto-positron",
