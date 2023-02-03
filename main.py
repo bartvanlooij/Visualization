@@ -23,7 +23,10 @@ mapping_collors = {x: list_colors[index] for index,
 df['app_type_color'] = df['room type'].map(mapping_collors)
 df_plot = pd.read_csv('data/apparments_per_region.csv',
                       low_memory=False, index_col=0)
+df_plot['name'] = df_plot['id'].str.replace("_", " ")
 df_plot['geometry'] = df_plot['geometry'].apply(lambda x: shapely.wkt.loads(x))
+df_plot['centroid'] = df_plot['geometry'].apply(
+    lambda x: list(x.centroid.coords[0]))
 
 df_sub = gpd.read_file('data/Subway Lines.geojson')
 df_attraction = pd.read_csv('data/number_of_vistors.csv', index_col=0)
@@ -35,9 +38,9 @@ max_columns = ['price', 'service fee',
 
 graph_width = 100
 graph_height = 100
-hightlight_size = 3
+hightlight_size = 12
 app = Dash(__name__)
-
+token = open("token").read()
 lats = []
 lons = []
 names = []
@@ -60,62 +63,16 @@ for feature, name in zip(df_sub.geometry, df_sub.name):
 
 
 app.layout = html.Div(id='main', children=[
-    html.H1(id='title', children='Air BnB'),
+    html.H1(id='title', children='Air BnB appartments in New York'),
     html.Div(id='main_graph_options_container', children=[
         html.Div(id='graph_container', children=[
             dcc.Graph(id='main_graph', animate=False)
         ]),
-        html.Div(children=[
-            html.Div(id='graph_options_container', children=[
-                dcc.Checklist(id='graph_options', options=[
-                    'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions']),
-                html.Details(id='price_range_details', children=[
-                    html.Summary('Price range'),
-                    dcc.RangeSlider(id='price_slider', value=[df.price.min(), df.price.max()], min=df.price.min(),
-                                    max=df.price.max(), tooltip={"placement": "bottom", "always_visible": True})
+        html.Div(id='table_container', children=[dash_table.DataTable(id='comparison_table', columns=[
+            {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True),
+            html.Button('Add appartments to New York map',
+                        id='add_points_button')], style={'display': 'none'})
 
-                ]),
-                html.Details(id='cancellation_summary', children=[
-                    html.Summary('Cancellation policy'),
-                    dcc.Checklist(style={'margin-left': '15px'}, id='cancellation', labelStyle={'display': 'block'}, options=df.cancellation_policy.unique(
-                    ).tolist(), value=df.cancellation_policy.unique().tolist())
-                ]),
-                html.Details(
-                    id='room_type_details', children=[
-                        html.Summary('Room type'),
-                        dcc.Checklist(style={'margin-left': '15px'}, id='room_type_checklist', labelStyle={
-                            'display': 'block'}, options=df['room type'].unique().tolist(), value=df['room type'].unique().tolist())
-                    ]
-                ),
-                html.Details(id='num_days_to_book', children=[
-                    html.Summary('Number of nights you want to book'),
-                    daq.NumericInput(
-                        value=1, id='number_of_days_input', max=1000)
-                ]),
-                html.Details(id='average_review_details', children=[
-                    html.Summary('Average review'),
-                    dcc.Slider(id='review_slider', min=0, max=5, value=0, tooltip={
-                        "placement": "bottom", "always_visible": True})
-                ]),
-                html.Details(id='instant_bookable_details', children=[
-                    html.Summary('Immediately available'),
-                    dcc.Checklist(style={'margin-left': '15px'}, id='available_check', labelStyle={
-                        'display': 'block'}, options=['Instantly avaible'], value=[])
-                ]),
-                html.Details(id='service_fee_details', children=[
-                    html.Summary('Maximum service fee'),
-                    dcc.Slider(id='service_fee_slider', min=df['service fee'].min(), max=df['service fee'].max(
-                    ), value=df['service fee'].max(), tooltip={"placement": "bottom", "always_visible": True})
-                ]),
-                html.Button('Apply', id='apply_button')
-
-
-
-
-
-            ], style={'width': '500px'}
-            )
-        ])
     ], style={'display': 'flex', 'flex-direction': 'row'}),
     html.Div(id='sub_graph_container', children=[
         html.Div(children=[
@@ -124,14 +81,61 @@ app.layout = html.Div(id='main', children=[
                       style={'display': 'none'})
         ]),
         html.Div(id='comparison_container', children=[
-            dash_table.DataTable(id='comparison_table', columns=[
-                                 {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True),
-            html.Button('Add appartments to New York map',
-                        id='add_points_button')
-        ], style={'display': 'none'})
+            html.Div(children=[
+                html.Div(id='graph_options_container', children=[
+                    dcc.Checklist(id='graph_options', options=[
+                        'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions']),
+                    html.Details(id='price_range_details', children=[
+                        html.Summary('Price range'),
+                        dcc.RangeSlider(id='price_slider', value=[df.price.min(), df.price.max()], min=df.price.min(),
+                                        max=df.price.max(), tooltip={"placement": "bottom", "always_visible": True})
+
+                    ]),
+                    html.Details(id='cancellation_summary', children=[
+                        html.Summary('Cancellation policy'),
+                        dcc.Checklist(style={'margin-left': '15px'}, id='cancellation', labelStyle={'display': 'block'}, options=df.cancellation_policy.unique(
+                        ).tolist(), value=df.cancellation_policy.unique().tolist())
+                    ]),
+                    html.Details(
+                        id='room_type_details', children=[
+                            html.Summary('Room type'),
+                            dcc.Checklist(style={'margin-left': '15px'}, id='room_type_checklist', labelStyle={
+                                'display': 'block'}, options=df['room type'].unique().tolist(), value=df['room type'].unique().tolist())
+                        ]
+                    ),
+                    html.Details(id='num_days_to_book', children=[
+                        html.Summary('Number of nights you want to book'),
+                        daq.NumericInput(
+                            value=1, id='number_of_days_input', max=1000)
+                    ]),
+                    html.Details(id='average_review_details', children=[
+                        html.Summary('Average review'),
+                        dcc.Slider(id='review_slider', min=0, max=5, value=0, tooltip={
+                            "placement": "bottom", "always_visible": True})
+                    ]),
+                    html.Details(id='instant_bookable_details', children=[
+                        html.Summary('Immediately available'),
+                        dcc.Checklist(style={'margin-left': '15px'}, id='available_check', labelStyle={
+                            'display': 'block'}, options=['Instantly avaible'], value=[])
+                    ]),
+                    html.Details(id='service_fee_details', children=[
+                        html.Summary('Maximum service fee'),
+                        dcc.Slider(id='service_fee_slider', min=df['service fee'].min(), max=df['service fee'].max(
+                        ), value=df['service fee'].max(), tooltip={"placement": "bottom", "always_visible": True})
+                    ]),
+                    html.Button('Apply', id='apply_button')
+
+
+
+
+
+                ], style={'width': '500px'}
+                )
+            ])
+        ])
     ], style={'display': 'flex', 'flex-direction': 'row'}),
     html.Div(id='debug'),
-    html.Div(id='debug2'),
+    html.Div(id='debug2', children=f'{df_plot["centroid"][0]}'),
     html.Div(id='debug_clickdata')
 ]
 )
@@ -149,8 +153,8 @@ def update_graph(apply_button, add_points, figure, graph_options):
     go_fig = go.Figure(layout=go.Layout(height=500, width=1500))
     go_fig.update_layout()
     if 'New York districts' in graph_options:
-        second_option = go.Choropleth(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, colorscale=[[0, 'rgb(0,0,255)'], [1, 'rgb(0,0,255)']],
-                                      zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=2, hoverinfo='none', showlegend=False, showscale=False)
+        second_option = go.Choroplethmapbox(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, customdata=df_plot['name'], colorscale=[[0, 'rgb(0,0,255)'], [1, 'rgb(0,0,255)']],
+                                            zmin=df_plot.appartment_count.min(), zmax=df_plot.appartment_count.max(), marker_line_width=2, hoverinfo='none', marker=dict(opacity=0.5), showlegend=False, showscale=False, hovertemplate="%{customdata}")
         go_fig.add_trace(second_option)
         go_fig.update_geos(fitbounds="locations")
         go_fig.update_layout(mapbox_style="carto-positron",
@@ -159,8 +163,8 @@ def update_graph(apply_button, add_points, figure, graph_options):
     if 'Public transit' in graph_options:
         go_fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0})
 
-        fig_2 = go.Scattergeo(lat=lats, lon=lons,
-                              mode='lines', hoverinfo='skip', showlegend=False)
+        fig_2 = go.Scattermapbox(lat=lats, lon=lons,
+                                 mode='lines', hoverinfo='skip', showlegend=False)
         go_fig.add_trace(fig_2)
         go_fig.update_geos(fitbounds="locations")
         go_fig.update_layout(mapbox_style="carto-positron",
@@ -168,16 +172,17 @@ def update_graph(apply_button, add_points, figure, graph_options):
 
     if 'Tourist attractions' in graph_options:
 
-        fig_3 = go.Scattergeo(lon=df_attraction['long'], lat=df_attraction['lat'], text=df_attraction['Name'], customdata=df_attraction['Estimated number of visitors (millions)'],
-                              marker=dict(color='black'), showlegend=False, hovertemplate="%{text}<br>Number of visitors per year: %{customdata} million")
+        fig_3 = go.Scattermapbox(lon=df_attraction['long'], lat=df_attraction['lat'], text=df_attraction['Name'], customdata=df_attraction['Estimated number of visitors (millions)'],
+                                 marker=dict(color='black'), showlegend=False, hovertemplate="%{text}<br>Number of visitors per year: %{customdata} million")
 
         go_fig.add_trace(fig_3)
 
     df_table = df[df['size'] == hightlight_size]
-    fig_table = go.Scattergeo(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME, marker=dict(
-        color='red', size=hightlight_size), showlegend=False, hovertemplate="%{text}")
+    fig_table = go.Scattermapbox(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME, mode='markers', marker=dict(color='yellow',
+                                                                                                                            size=hightlight_size), showlegend=True, hovertemplate="%{text}", name='Selected apparments')
     go_fig.add_trace(fig_table)
-    go_fig.update_layout()
+    go_fig.update_layout(showlegend=True, mapbox=dict(accesstoken=token))
+    go_fig.update_layout(mapbox_style="open-street-map")
     if not figure:
         return go_fig
     return go_fig
@@ -212,25 +217,27 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     traces = []
     for app_type in app_types:
         df_app_type = df_subregion[df_subregion['room type'] == app_type]
-        trace = go.Scattergeo(lon=df_app_type['long'], lat=df_app_type['lat'], text=df_app_type['NAME'],
-                              marker=dict(color='black'), marker_color=df_app_type['app_type_color'], hovertemplate="%{text}",
-                              name=app_type)
+        trace = go.Scattermapbox(lon=df_app_type['long'], lat=df_app_type['lat'], text=df_app_type['NAME'],
+                                 marker=dict(color='black'), marker_color=df_app_type['app_type_color'], hovertemplate="%{text}",
+                                 name=app_type)
         traces.append(trace)
 
     # Add all traces to the figure and set the showlegend attribute to True
     for trace in traces:
         go_fig.add_trace(trace)
-    go_fig.update_layout(showlegend=True)
-
+    index = df_plot[df_plot['id'] == region].index.tolist()[0]
+    coords = df_plot.loc[index, 'centroid']
+    go_fig.update_layout(showlegend=True, mapbox=dict(
+        accesstoken=token, center=dict(lon=coords[0], lat=coords[1]), zoom=13))
     go_fig.update_geos(fitbounds="locations")
-    go_fig.update_layout(mapbox_style="carto-positron")
+    go_fig.update_layout(mapbox_style="open-street-map")
 
     return go_fig, region.replace("_", " "), {"display": "block"}
 
 
 @app.callback(
     Output('comparison_table', 'data'),
-    Output('comparison_container', 'style'),
+    Output('table_container', 'style'),
     Input('sub_graph_figure', 'clickData'),
     State('comparison_table', 'columns'),
     State('comparison_table', 'data'),
