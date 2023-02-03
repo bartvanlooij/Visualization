@@ -178,7 +178,7 @@ def update_graph(apply_button, add_points, graph_options, figure):
         go_fig.add_trace(fig_3)
 
     df_table = df[df['size'] == hightlight_size]
-    fig_table = go.Scattermapbox(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME,marker=dict(color='yellow'), showlegend=True, hovertemplate="%{text}", name='Selected apparments')
+    fig_table = go.Scattermapbox(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME,mode='markers',marker=dict(color='black', size=hightlight_size), showlegend=True, hovertemplate="%{text}", name='Selected apparments')
     go_fig.add_trace(fig_table)
     go_fig.update_layout(showlegend=True, mapbox=dict(accesstoken=token))
     go_fig.update_layout(mapbox_style="open-street-map")
