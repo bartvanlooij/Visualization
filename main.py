@@ -133,10 +133,7 @@ app.layout = html.Div(id='main', children=[
                 )
             ])
         ])
-    ], style={'display': 'flex', 'flex-direction': 'row'}),
-    html.Div(id='debug'),
-    html.Div(id='debug2', children=f'{df_plot["centroid"][0]}'),
-    html.Div(id='debug_clickdata')
+    ], style={'display': 'flex', 'flex-direction': 'row'})
 ]
 )
 
