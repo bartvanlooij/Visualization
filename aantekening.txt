@@ -1,0 +1,4 @@
+Muis over regio bepaald kleur
+appartementen highlighten in de ondersteplot
+mapbox implementeren
+mpa lagen opties goed neerzetten
