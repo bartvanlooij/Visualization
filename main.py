@@ -66,12 +66,12 @@ app.layout = html.Div(id='main', children=[
         html.Div(id='graph_container', children=[
             dcc.Graph(id='main_graph', animate=False),
             dcc.Checklist(id='graph_options', options=[
-                        'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions'])
+                'New York districts', 'Public transit', 'Tourist attractions'], labelStyle={'display': 'block'}, value=['New York districts', 'Public transit', 'Tourist attractions'])
         ]),
         html.Div(id='table_container', children=[
             html.H2("Apparment comparrison"),
             dash_table.DataTable(id='comparison_table', columns=[
-            {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True),
+                {'name': f'{x[0].upper() + x[1:].lower()}', 'id': f'{x}', 'deletable': False} for x in table_columns], editable=True, row_deletable=True),
             html.Button('Add appartments to New York map',
                         id='add_points_button')], style={'display': 'none'})
 
@@ -150,7 +150,8 @@ app.layout = html.Div(id='main', children=[
 
 )
 def update_graph(apply_button, add_points, graph_options, figure):
-    go_fig = go.Figure(layout=go.Layout(height=graph_height, width=graph_width))
+    go_fig = go.Figure(layout=go.Layout(
+        height=graph_height, width=graph_width))
     go_fig.update_layout()
     if 'New York districts' in graph_options:
         second_option = go.Choroplethmapbox(geojson=geo_json, locations=df_plot.id, z=df_plot.appartment_count, customdata=df_plot['name'], colorscale=[[0, 'rgb(0,0,255)'], [1, 'rgb(0,0,255)']],
@@ -173,12 +174,13 @@ def update_graph(apply_button, add_points, graph_options, figure):
     if 'Tourist attractions' in graph_options:
 
         fig_3 = go.Scattermapbox(lon=df_attraction['long'], lat=df_attraction['lat'], text=df_attraction['Name'], customdata=df_attraction['Estimated number of visitors (millions)'],
-                                 marker=dict(color='black'), showlegend=False, hovertemplate="%{text}<br>Average yearly visitors: %{customdata} million")
+                                 marker=dict(color='black'), showlegend=True, name="Tourist attractions", hovertemplate="%{text}<br>Average yearly visitors: %{customdata} million")
 
         go_fig.add_trace(fig_3)
 
     df_table = df[df['size'] == hightlight_size]
-    fig_table = go.Scattermapbox(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME,mode='markers',marker=dict(color='black', size=hightlight_size), showlegend=True, hovertemplate="%{text}", name='Selected apparments')
+    fig_table = go.Scattermapbox(lon=df_table['long'], lat=df_table['lat'], text=df_table.NAME, mode='markers', marker=dict(
+        color='yellow', size=hightlight_size), showlegend=True, hovertemplate="%{text}", name='Selected appar`tments')
     go_fig.add_trace(fig_table)
     go_fig.update_layout(showlegend=True, mapbox=dict(accesstoken=token))
     go_fig.update_layout(mapbox_style="open-street-map")
@@ -209,7 +211,8 @@ def on_graph_click(apply_botton, clickdata, room_type, service_fee, number_of_da
     mask2 = mask1 & (df['service fee'] <= service_fee) & (
         df['room type'].isin(room_type)) & (df['review rate number'] >= min_review)
     df_appartments_true = df[mask2]
-    go_fig = go.Figure(layout=go.Layout(height=graph_height, width=graph_width+100))
+    go_fig = go.Figure(layout=go.Layout(
+        height=graph_height, width=graph_width+100))
     df_subregion = df_appartments_true[df_appartments_true['region'] == region]
 
     # Get unique app_types and create a trace for each app_type
@@ -322,4 +325,4 @@ def update_table(rows):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(debug=False)
